@@ -22,31 +22,73 @@ def runner():
         primary_hue="violet",
         neutral_hue="slate",
         radius_size="lg",
-        spacing_size="md",
+        spacing_size="sm",
     )
     css = """
     body {
-        background: linear-gradient(180deg, #f5f3ff 0%, #ffffff 45%);
+        background: linear-gradient(180deg, #f5f3ff 0%, #fdfcff 100%);
     }
     .gradio-container {
-        max-width: 860px !important;
+        max-width: 900px !important;
         margin: 0 auto;
+        padding: 0.5rem 1rem !important;
     }
+    /* Minimize all vertical spacing */
+    .contain, .gr-box, .gr-form, .gr-group {
+        padding: 0 !important;
+        margin: 0 !important;
+        gap: 0.25rem !important;
+    }
+    /* Compact header */
+    .gr-box h1 {
+        margin: 0.5rem 0 0.25rem 0 !important;
+        padding: 0 !important;
+        font-size: 1.5rem !important;
+        line-height: 1.2 !important;
+    }
+    .gr-box p {
+        margin: 0 0 0.5rem 0 !important;
+        padding: 0 !important;
+        font-size: 0.9rem !important;
+        line-height: 1.3 !important;
+    }
+    /* Maximize chatbot space */
     .gr-chatbot {
-        border-radius: 18px !important;
-        border: 1px solid rgba(96, 78, 255, 0.18);
-        box-shadow: 0 16px 32px rgba(42, 34, 94, 0.08);
+        border-radius: 14px !important;
+        border: 1px solid rgba(96, 78, 255, 0.15);
+        box-shadow: 0 4px 16px rgba(42, 34, 94, 0.08);
+        background: white;
+        margin: 0.5rem 0 !important;
     }
     .gr-chatbot .message {
-        border-radius: 16px !important;
-        border: 1px solid rgba(96, 78, 255, 0.08);
+        border-radius: 12px !important;
+        padding: 0.5rem 0.75rem !important;
+    }
+    /* Compact input */
+    .gr-textbox {
+        margin: 0.5rem 0 !important;
     }
     .gr-textbox textarea {
-        min-height: 92px;
-        font-size: 1rem;
+        min-height: 60px !important;
+        font-size: 0.95rem;
+        border-radius: 12px !important;
+        padding: 0.5rem !important;
     }
+    /* Compact buttons */
+    .gr-button {
+        border-radius: 10px !important;
+        padding: 0.4rem 1rem !important;
+        margin: 0.25rem 0 !important;
+    }
+    /* Minimal footer */
     .gradio-container footer {
-        box-shadow: 0 -8px 28px rgba(32, 28, 66, 0.06);
+        margin-top: 0.5rem !important;
+        padding: 0.5rem !important;
+        box-shadow: none !important;
+    }
+    /* Remove gaps between form elements */
+    .gr-form > * {
+        margin-bottom: 0 !important;
     }
     """
 
@@ -70,11 +112,12 @@ def runner():
         chatbot_component = gr.Chatbot(
             label="KolmoLabs Assistant",
             type="messages",
-            height=430,
+            height=550,
             avatar_images=(
                 None,
                 str(LOGO_PATH.resolve()) if LOGO_PATH.exists() else None,
             ),
+            show_copy_button=True,
         )
 
         chat = gr.ChatInterface(
@@ -83,7 +126,8 @@ def runner():
             chatbot=chatbot_component,
             textbox=gr.Textbox(
                 placeholder="Ask about KolmoLabs' mission, services, pricing, or partnerships...",
-                lines=2,
+                lines=1,
+                max_lines=3,
                 autofocus=True,
                 submit_btn="Send",
                 stop_btn="Stop",
@@ -91,10 +135,7 @@ def runner():
             additional_inputs=[agent_state],
             additional_outputs=[agent_state],
             title="KolmoLabs Business Assistant",
-            description=(
-                "Fast answers about Kolmogorov Neural Network services for MENA SMBs. "
-                "Happy to capture leads, schedule demos, or note phone call requests."
-            ),
+            description="Fast answers about Kolmogorov Neural Network services for MENA SMBs. Happy to capture leads, schedule demos, or note phone call requests.",
             theme=theme,
         )
 
