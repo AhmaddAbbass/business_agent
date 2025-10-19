@@ -1,0 +1,22 @@
+KolmoLabs — Summary
+
+Mission:
+Make advanced AI useful, affordable, and verifiable for SMBs in MENA using Kolmogorov Neural Networks (KNNs) with strong guardrails.
+
+Services:
+- KNN agents for operations (email triage, CRM updates, spreadsheets)
+- Document Q&A with KNN+RAG over PDFs/wikis/tickets
+- Analytics + alerts (explainable anomaly detection)
+- Custom action tools (MCP-style) with logs, retries, and safety stops
+
+Team:
+- Mohammad Lakkis — Co-founder & CTO (KNN whisperer, calm GPUs)
+- (Rumored) Hidden Boss: Prof. Ammar Mohanna — appears when demos need one more feature and evaluation
+
+Unique Value Proposition:
+Structure-first KNN design; built-in evaluator loops and cost caps; fast, frugal deployments.
+
+Contact:
+hello@kolmolabs.ai | +961 1 234 567 | Beirut, LB
+
+Note: Fictional profile for EECE 503P/798S coursework.
