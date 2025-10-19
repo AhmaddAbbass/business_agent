@@ -33,6 +33,8 @@ python app.py
 
 Then open http://127.0.0.1:5000/ in a browser. Use the “Stop” button or Ctrl+C in the terminal to shut it down.
 
+👉 Want a quick tour? **See this link for demo:** https://youtu.be/SpTGSJGcpdU
+
 ## Notebook Workflow
 
 Open `business_agent.ipynb` in Jupyter or Colab and run all cells. The notebook:
