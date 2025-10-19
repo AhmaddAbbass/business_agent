@@ -17,89 +17,92 @@ def _agent_turn(
 
 
 def runner():
-    """Launch the Gradio demo with a small branded header and logo."""
+    """Launch the Gradio demo with a branded ChatInterface layout."""
+    theme = gr.themes.Soft(
+        primary_hue="violet",
+        neutral_hue="slate",
+        radius_size="lg",
+        spacing_size="md",
+    )
+    css = """
+    body {
+        background: linear-gradient(180deg, #f5f3ff 0%, #ffffff 45%);
+    }
+    .gradio-container {
+        max-width: 860px !important;
+        margin: 0 auto;
+    }
+    .gr-chatbot {
+        border-radius: 18px !important;
+        border: 1px solid rgba(96, 78, 255, 0.18);
+        box-shadow: 0 16px 32px rgba(42, 34, 94, 0.08);
+    }
+    .gr-chatbot .message {
+        border-radius: 16px !important;
+        border: 1px solid rgba(96, 78, 255, 0.08);
+    }
+    .gr-textbox textarea {
+        min-height: 92px;
+        font-size: 1rem;
+    }
+    .gradio-container footer {
+        box-shadow: 0 -8px 28px rgba(32, 28, 66, 0.06);
+    }
+    """
+
     with gr.Blocks(
         title="KolmoLabs Business Assistant",
-        theme=gr.themes.Soft(),
-        css="""
-        .branding-row {align-items: center;}
-        .branding-logo {max-width: 96px; margin-right: 16px;}
-        .branding-copy h1 {margin-bottom: 4px;}
-        .feedback-hint {font-size: 0.85rem; color: #555;}
-        """,
+        theme=theme,
+        css=css,
     ) as demo:
         agent_state = gr.State(new_conversation())
-        chatbot = gr.Chatbot(label="KolmoLabs Assistant", type="tuples", height=430)
-        user_box = gr.Textbox(
-            placeholder="Ask about KolmoLabs' mission, services, pricing policies, etc.",
-            label="Message",
-            autofocus=True,
-        )
-        clear_btn = gr.Button("Clear conversation", variant="secondary")
 
-        with gr.Row(elem_classes="branding-row"):
-            if LOGO_PATH.exists():
-                gr.Image(
-                    value=str(LOGO_PATH.resolve()),
-                    show_label=False,
-                    container=False,
-                    elem_classes="branding-logo",
-                )
-            gr.Column(
-                [
-                    gr.Markdown("## KolmoLabs Business Assistant"),
-                    gr.Markdown(
-                        "Fast answers about KolmoLabs' Kolmogorov Neural Network services for MENA SMBs."
-                    ),
-                ],
-                elem_classes="branding-copy",
-            )
+        def respond(message: str, history, agent_history):
+            if not message.strip():
+                return "", agent_history
+            new_agent_history, reply = _agent_turn(agent_history, message)
+            return reply, new_agent_history
 
-        gr.Markdown(
-            "Need inspiration? Try one of the quick prompts below or share your contact details if you'd like a follow-up."
-        )
-        gr.Examples(
-            examples=[
-                ["What services does KolmoLabs offer?"],
-                ["We might need AI support; I'm Sara Ayoub and my email is sara@corp.com."],
-                ["Do you have a Dubai office or regional partners?"],
-            ],
-            inputs=user_box,
-        )
-        gr.Markdown(
-            ">(The assistant relies solely on the provided business documents. New questions are logged for follow-up.)",
-            elem_classes="feedback-hint",
+        def respond_stream(message: str, history, agent_history):
+            reply, updated_history = respond(message, history, agent_history)
+            yield reply, updated_history
+
+        chatbot_component = gr.Chatbot(
+            label="KolmoLabs Assistant",
+            type="messages",
+            height=430,
+            avatar_images=(
+                None,
+                str(LOGO_PATH.resolve()) if LOGO_PATH.exists() else None,
+            ),
         )
 
-        def respond(user_message: str, history: List[Tuple[str, str]], agent_history):
-            if not user_message.strip():
-                return history, agent_history
-
-            agent_history, reply = _agent_turn(agent_history, user_message)
-            updated_history = history + [(user_message, reply)]
-            return updated_history, agent_history
-
-        def clear_conversation():
-            return [], new_conversation()
-
-        user_box.submit(
-            respond,
-            inputs=[user_box, chatbot, agent_state],
-            outputs=[chatbot, agent_state],
-        ).then(
-            lambda: gr.update(value=""),
-            inputs=None,
-            outputs=user_box,
+        chat = gr.ChatInterface(
+            fn=respond_stream,
+            type="messages",
+            chatbot=chatbot_component,
+            textbox=gr.Textbox(
+                placeholder="Ask about KolmoLabs' mission, services, pricing, or partnerships...",
+                lines=2,
+                autofocus=True,
+                submit_btn="Send",
+                stop_btn="Stop",
+            ),
+            additional_inputs=[agent_state],
+            additional_outputs=[agent_state],
+            title="KolmoLabs Business Assistant",
+            description=(
+                "Fast answers about Kolmogorov Neural Network services for MENA SMBs. "
+                "Happy to capture leads, schedule demos, or note phone call requests."
+            ),
+            theme=theme,
         )
-        clear_btn.click(
-            clear_conversation,
-            outputs=[chatbot, agent_state],
+
+        chat.chatbot.clear(
+            lambda: new_conversation(),
+            outputs=[agent_state],
             queue=False,
-        ).then(
-            lambda: gr.update(value=""),
-            inputs=None,
-            outputs=user_box,
-            queue=False,
+            show_api=False,
         )
 
     demo.launch(server_name="127.0.0.1", server_port=5000, share=False, show_api=False)

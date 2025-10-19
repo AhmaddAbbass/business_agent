@@ -17,6 +17,8 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # --- simple storage files ---
 LEADS_CSV = Path("leads.csv")
 FEEDBACK_LOG = Path("feedback.log")
+DEMO_REQUESTS_CSV = Path("demo_requests.csv")
+PHONE_LEADS_CSV = Path("phone_contacts.csv")
 
 def _append_line(path: Path, line: str):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -33,6 +35,24 @@ def record_customer_interest(email: str, name: str, message: str = "") -> str:
     print("[LEAD]", rec)
     return f"Recorded lead for {name} <{email}>."
 
+def record_demo_request(email: str, name: str, preferred_time: str = "") -> str:
+    """
+    Append a demo request entry to demo_requests.csv and print to console.
+    """
+    rec = f'{email},"{name}","{preferred_time.replace(chr(34), chr(39))}"'
+    _append_line(DEMO_REQUESTS_CSV, rec)
+    print("[DEMO]", rec)
+    return f"Noted demo request for {name} <{email}>."
+
+def record_phone_contact(name: str, phone: str, notes: str = "") -> str:
+    """
+    Append a phone lead entry to phone_contacts.csv and print to console.
+    """
+    rec = f'"{name}",{phone},"{notes.replace(chr(34), chr(39))}"'
+    _append_line(PHONE_LEADS_CSV, rec)
+    print("[PHONE]", rec)
+    return f"Recorded phone contact for {name} ({phone})."
+
 def record_feedback(question: str) -> str:
     """
     Append unknown/unanswered user question to feedback.log and print to console.
@@ -44,6 +64,8 @@ def record_feedback(question: str) -> str:
 # Make a registry so we can dispatch tool calls
 TOOL_REGISTRY = {
     "record_customer_interest": record_customer_interest,
+    "record_demo_request": record_demo_request,
+    "record_phone_contact": record_phone_contact,
     "record_feedback": record_feedback,
 }
 
@@ -62,6 +84,38 @@ OPENAI_TOOLS = [
                     "message": {"type": "string", "description": "Short note about their need or interest."}
                 },
                 "required": ["email", "name"]
+            }
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "record_demo_request",
+            "description": "Log a user's request for a KolmoLabs product demo when they share contact info and ask to see the platform.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "email": {"type": "string", "description": "Requester email address."},
+                    "name": {"type": "string", "description": "Requester name."},
+                    "preferred_time": {"type": "string", "description": "Optional requested time or window for the demo."}
+                },
+                "required": ["email", "name"]
+            }
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "record_phone_contact",
+            "description": "Store a prospect's phone number when they prefer a call instead of email follow-up.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Contact name."},
+                    "phone": {"type": "string", "description": "Phone number including country code if available."},
+                    "notes": {"type": "string", "description": "Optional context about their request or timing."}
+                },
+                "required": ["name", "phone"]
             }
         },
     },
