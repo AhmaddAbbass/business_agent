@@ -1,0 +1,7 @@
+[DEMO] lina@example.com,"Lina","next week"
+[PHONE] "Omar",+961-3-555555,"Needs onboarding help"
+[LEAD] karim@orbit.ai,"Karim","Looking for partnerships"
+[DEMO] dina@example.com,"Dina","next week"
+[PHONE] "Komar",+961-3-555556,"Needs onboarding help"
+[LEAD] kalim@orbit.ai,"Kalim","Looking for partnerships"
+[FEEDBACK] What are your enterprise pricing tiers and Mumbai office address?

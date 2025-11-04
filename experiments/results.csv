@@ -1,0 +1,9 @@
+timestamp,persona,temperature,top_p,cot,prompt,reply_len,used_tools,error_count,errors
+2025-11-04T14:14:50Z,Friendly Advisor,0.6,1.0,True,What is your mission?,319,0,0,
+2025-11-04T14:14:52Z,Friendly Advisor,0.6,1.0,True,I'm Lina; my email is lina@example.com — can I get a demo next week?,218,1,0,
+2025-11-04T14:14:54Z,Friendly Advisor,0.6,1.0,True,"Call me at +961-3-555555, I'm Omar; need onboarding help.",233,1,0,
+2025-11-04T14:14:56Z,Friendly Advisor,0.6,1.0,True,What are your enterprise pricing tiers and Dubai office address?,796,0,0,
+2025-11-04T14:14:57Z,Strict Expert,0.2,0.9,False,What is your mission?,204,0,0,
+2025-11-04T14:15:00Z,Strict Expert,0.2,0.9,False,I'm Lina; my email is lina@example.com — can I get a demo next week?,199,1,0,
+2025-11-04T14:15:03Z,Strict Expert,0.2,0.9,False,"Call me at +961-3-555555, I'm Omar; need onboarding help.",174,1,0,
+2025-11-04T14:15:04Z,Strict Expert,0.2,0.9,False,What are your enterprise pricing tiers and Dubai office address?,316,0,0,

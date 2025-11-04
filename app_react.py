@@ -93,10 +93,16 @@ def runner():
                 packed = (graph, init_state)
 
             graph, current_state = packed
-            new_state, reply, tool_summaries = run_once(graph, current_state, message)
+            if not isinstance(current_state, dict) or "messages" not in current_state:
+                graph, current_state = get_graph_and_state(persona_key)
+                packed = (graph, current_state)
+            new_state, reply, tool_summaries, error_logs = run_once(graph, current_state, message)
             if tool_summaries:
                 formatted = "\n".join(f"- {item}" for item in tool_summaries)
                 reply = f"{reply}\n\nTool activity:\n{formatted}"
+            if error_logs:
+                formatted_errors = "\n".join(f"- {err}" for err in error_logs)
+                reply = f"{reply}\n\nErrors:\n{formatted_errors}"
             return reply, (graph, new_state)
 
         def respond_stream(message: str, history, packed, persona_key):

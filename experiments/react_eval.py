@@ -34,6 +34,8 @@ def main():
                 "prompt",
                 "reply_len",
                 "used_tools",
+                "error_count",
+                "errors",
             ]
         )
 
@@ -50,7 +52,7 @@ def main():
 
             for prompt in PROMPTS:
                 s = {"messages": list(base_state["messages"])}
-                s, reply, tool_logs = run_once(graph, s, prompt)
+                s, reply, tool_logs, error_logs = run_once(graph, s, prompt)
                 w.writerow(
                     [
                         datetime.utcnow().isoformat(timespec="seconds") + "Z",
@@ -61,6 +63,8 @@ def main():
                         prompt,
                         len(reply or ""),
                         int(bool(tool_logs)),
+                        len(error_logs),
+                        " | ".join(error_logs),
                     ]
                 )
 

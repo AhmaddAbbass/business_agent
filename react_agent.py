@@ -8,7 +8,10 @@ load_dotenv()
 
 # LangChain / LangGraph
 from langchain_openai import ChatOpenAI
-from langchain_core.tools import Tool
+try:
+    from langchain.tools import StructuredTool
+except ImportError:
+    from langchain_core.tools import StructuredTool
 from langchain_core.messages import (
     SystemMessage,
     HumanMessage,
@@ -16,6 +19,7 @@ from langchain_core.messages import (
     BaseMessage,
     ToolMessage,
 )
+from langgraph.errors import InvalidUpdateError
 from langgraph.graph import StateGraph, END, START
 from langgraph.graph import add_messages
 from langgraph.prebuilt import ToolNode
@@ -31,22 +35,22 @@ from agent_core import (
 
 # ---- Wrap existing tools for LangGraph ----
 tools = [
-    Tool.from_function(
+    StructuredTool.from_function(
         name="record_customer_interest",
         description="Record a potential customer's contact info or interest.",
         func=record_customer_interest,
     ),
-    Tool.from_function(
+    StructuredTool.from_function(
         name="record_demo_request",
         description="Log a user's request for a KolmoLabs product demo.",
         func=record_demo_request,
     ),
-    Tool.from_function(
+    StructuredTool.from_function(
         name="record_phone_contact",
         description="Store a prospect's phone number when they prefer a call.",
         func=record_phone_contact,
     ),
-    Tool.from_function(
+    StructuredTool.from_function(
         name="record_feedback",
         description="If you cannot answer from provided docs, log the user's question.",
         func=record_feedback,
@@ -103,7 +107,7 @@ def build_react_agent(
         response = llm.invoke(state["messages"])
         return {"messages": [response]}
 
-    tool_node = ToolNode(tools)
+    tool_node = ToolNode(tools, handle_tool_errors=True)
 
     # ----- Router -----
     def router(state: AgentState):
@@ -111,14 +115,21 @@ def build_react_agent(
         # If the model proposed tool_calls, go to tools, else END
         if isinstance(last, AIMessage) and getattr(last, "tool_calls", None):
             return "tools"
-        return "end"
+        return END
 
     # ----- Graph -----
     builder = StateGraph(AgentState)
     builder.add_node("agent", agent_node)
     builder.add_node("tools", tool_node)
     builder.add_edge(START, "agent")
-    builder.add_conditional_edges("agent", router, {"tools": "tools", "end": END})
+    builder.add_conditional_edges(
+        "agent",
+        router,
+        {
+            "tools": "tools",
+            END: END,
+        },
+    )
     builder.add_edge("tools", "agent")
     graph = builder.compile()
 
@@ -127,14 +138,61 @@ def build_react_agent(
     return graph, init_state
 
 
-def run_once(graph, state: AgentState, user_text: str) -> Tuple[AgentState, str, List[str]]:
+def run_once(graph, state: AgentState, user_text: str) -> Tuple[AgentState, str, List[str], List[str]]:
     """
-    One turn through the ReAct loop. Returns (new_state, final_text, tool_summaries).
+    One turn through the ReAct loop using a single graph.invoke call.
+    Returns (new_state, final_text, tool_summaries, error_logs).
     """
-    tool_logs = []
-    messages = state.setdefault("messages", [])
+    if not isinstance(state, dict):
+        state = {"messages": []}
+    elif "messages" not in state or not isinstance(state["messages"], list):
+        state = {"messages": list(state.get("messages", []))}
+    else:
+        state = {"messages": list(state["messages"])}
+
+    baseline_messages: List[BaseMessage] = list(state["messages"])
     human_msg = HumanMessage(user_text)
-    messages.append(human_msg)
+    error_logs: List[str] = []
+
+    def _invoke_with_messages(msgs: List[BaseMessage]) -> dict:
+        return graph.invoke({"messages": list(msgs)}, {"configurable": {"thread_id": "react"}})
+
+    candidate_messages = baseline_messages + [human_msg]
+
+    try:
+        result_state = _invoke_with_messages(candidate_messages)
+    except InvalidUpdateError as exc:
+        error_logs.append(f"InvalidUpdateError primary invoke: {exc}")
+        fallback_messages = baseline_messages[:1] + [human_msg]
+        try:
+            result_state = _invoke_with_messages(fallback_messages)
+        except InvalidUpdateError as exc2:
+            error_logs.append(f"InvalidUpdateError fallback invoke: {exc2}")
+            safe_reply = (
+                "I'm sorry—something went wrong on my side while processing that. "
+                "Could you try again with the same question?"
+            )
+            fallback_messages.append(AIMessage(safe_reply))
+            return {"messages": fallback_messages}, safe_reply, [], error_logs
+
+    if not isinstance(result_state, dict):
+        result_messages = getattr(result_state, "messages", candidate_messages)
+        result_state = {"messages": list(result_messages)}
+        error_logs.append(
+            f"Non-dict result_state received; coerced via messages ({type(result_state).__name__})."
+        )
+
+    result_messages: List[BaseMessage] = list(result_state.get("messages", []))
+
+    final_text = ""
+    for msg in reversed(result_messages):
+        if isinstance(msg, AIMessage):
+            final_text = msg.content or ""
+            break
+
+    baseline_count = len(baseline_messages)
+    delta_messages = result_messages[baseline_count:]
+    tool_logs: List[dict] = []
 
     def _capture_tool_call(call_obj):
         name = getattr(call_obj, "name", None)
@@ -152,41 +210,19 @@ def run_once(graph, state: AgentState, user_text: str) -> Tuple[AgentState, str,
             rendered_args = ", ".join(f"{k}={repr(v)}" for k, v in args.items())
         else:
             rendered_args = repr(args)
-        tool_logs.append({"name": name or "unknown_tool", "args": rendered_args, "result": None})
+        entry = {"name": name or "unknown_tool", "args": rendered_args, "result": None}
+        tool_logs.append(entry)
 
-    existing_ids = {
-        getattr(msg, "id", None) for msg in messages if getattr(msg, "id", None) is not None
-    }
-
-    # Stream events to detect tool execution and capture final AI output
-    final_text = ""
-    for event in graph.stream(state, {"configurable": {"thread_id": "react"}}):
-        for node_name, payload in event.items():
-            msgs = payload.get("messages", [])
-            if msgs:
-                for msg in msgs:
-                    msg_id = getattr(msg, "id", None)
-                    if msg_id is None or msg_id not in existing_ids:
-                        messages.append(msg)
-                        if msg_id is not None:
-                            existing_ids.add(msg_id)
-                    if isinstance(msg, AIMessage) and getattr(msg, "tool_calls", None):
-                        for call in msg.tool_calls:
-                            _capture_tool_call(call)
-                    if isinstance(msg, ToolMessage):
-                        name = getattr(msg, "name", None)
-                        for log in reversed(tool_logs):
-                            if log["result"] is None and (name is None or log["name"] == name):
-                                log["result"] = msg.content
-                                break
-                if isinstance(msgs[-1], AIMessage):
-                    final_text = msgs[-1].content
-
-    if not final_text:
-        for msg in reversed(messages):
-            if isinstance(msg, AIMessage):
-                final_text = msg.content
-                break
+    for msg in delta_messages:
+        if isinstance(msg, AIMessage) and getattr(msg, "tool_calls", None):
+            for call in msg.tool_calls:
+                _capture_tool_call(call)
+        elif isinstance(msg, ToolMessage):
+            name = getattr(msg, "name", None)
+            for entry in reversed(tool_logs):
+                if entry["result"] is None and (name is None or entry["name"] == name):
+                    entry["result"] = msg.content
+                    break
 
     tool_summaries: List[str] = []
     for entry in tool_logs:
@@ -195,4 +231,4 @@ def run_once(graph, state: AgentState, user_text: str) -> Tuple[AgentState, str,
             summary += f" -> {entry['result']}"
         tool_summaries.append(summary)
 
-    return state, (final_text or ""), tool_summaries
+    return result_state, final_text, tool_summaries, error_logs
