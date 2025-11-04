@@ -33,7 +33,14 @@ python app.py
 
 Then open http://127.0.0.1:5000/ in a browser. Use the “Stop” button or Ctrl+C in the terminal to shut it down.
 
-👉 Want a quick tour? **See this link for demo:** https://youtu.be/SpTGSJGcpdU
+Want a quick tour? **See this link for demo:** https://youtu.be/SpTGSJGcpdU
+
+## ReAct Agent (LangGraph)
+- Run the ReAct Gradio demo:
+  python app_react.py
+
+- Run experiments (logs CSV for reflection):
+  python -m experiments.react_eval
 
 ## Notebook Workflow
 
@@ -89,3 +96,4 @@ business_bot/
 - Always restart your Jupyter kernel after editing `agent_core.py` so imports pick up the latest constants.
 
 Happy hacking! Let me know if you need automated tests or deployment instructions.
+
