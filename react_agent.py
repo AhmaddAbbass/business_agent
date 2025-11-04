@@ -16,7 +16,7 @@ from langchain_core.messages import (
     BaseMessage,
     ToolMessage,
 )
-from langgraph.graph import StateGraph, END
+from langgraph.graph import StateGraph, END, START
 from langgraph.graph import add_messages
 from langgraph.prebuilt import ToolNode
 
@@ -117,7 +117,7 @@ def build_react_agent(
     builder = StateGraph(AgentState)
     builder.add_node("agent", agent_node)
     builder.add_node("tools", tool_node)
-    builder.set_entry_point("agent")
+    builder.add_edge(START, "agent")
     builder.add_conditional_edges("agent", router, {"tools": "tools", "end": END})
     builder.add_edge("tools", "agent")
     graph = builder.compile()
